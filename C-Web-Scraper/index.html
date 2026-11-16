@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C-Powered Web Text Scraper</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: #0f172a; color: #f8fafc; margin: 0; padding: 40px 20px; display: flex; justify-content: center; }
+        .container { max-width: 850px; width: 100%; background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); }
+        h1 { margin-top: 0; font-size: 24px; color: #38bdf8; }
+        p.subtitle { color: #94a3b8; font-size: 14px; margin-bottom: 24px; }
+        .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        input[type="url"] { flex: 1; padding: 12px 16px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 15px; outline: none; }
+        input[type="url"]:focus { border-color: #38bdf8; }
+        button { padding: 12px 22px; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        #scrapeBtn { background: #0284c7; color: white; }
+        #scrapeBtn:hover { background: #0369a1; }
+        #scrapeBtn:disabled { background: #475569; cursor: not-allowed; }
+        .actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .action-btns { display: flex; gap: 10px; }
+        .secondary-btn { background: #334155; color: #e2e8f0; padding: 8px 14px; font-size: 13px; }
+        .secondary-btn:hover { background: #475569; }
+        textarea { width: 100%; height: 380px; background: #0f172a; color: #e2e8f0; border: 1px solid #334155; border-radius: 8px; padding: 16px; font-family: Consolas, monospace; font-size: 14px; line-height: 1.5; resize: vertical; outline: none; }
+        #status { font-size: 14px; color: #38bdf8; }
+        .error { color: #f87171 !important; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Web Text Extractor</h1>
+    <p class="subtitle">Powered by C (libcurl + libxml2) — Extracts headings, paragraphs, and list items cleanly.</p>
+
+    <div class="input-group">
+        <input type="url" id="urlInput" placeholder="https://example.com" required>
+        <button id="scrapeBtn" onclick="scrapeWebsite()">Scrape Text</button>
+    </div>
+
+    <div class="actions">
+        <span id="status">Ready</span>
+        <div class="action-btns">
+            <button class="secondary-btn" onclick="copyText()">Copy Text</button>
+            <button class="secondary-btn" onclick="downloadTxt()">Download .txt</button>
+        </div>
+    </div>
+
+    <textarea id="outputBox" placeholder="Extracted text will appear here..." readonly></textarea>
+</div>
+
+<script>
+    async function scrapeWebsite() {
+        const urlInput = document.getElementById('urlInput').value.trim();
+        const statusEl = document.getElementById('status');
+        const outputBox = document.getElementById('outputBox');
+        const btn = document.getElementById('scrapeBtn');
+
+        if (!urlInput) {
+            statusEl.textContent = "Please enter a valid URL.";
+            statusEl.className = "error";
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = "Scraping...";
+        statusEl.className = "";
+        statusEl.textContent = "Fetching & parsing webpage...";
+        outputBox.value = "";
+
+        try {
+            const response = await fetch(`/api/scrape?url=${encodeURIComponent(urlInput)}`);
+            const text = await response.text();
+
+            if (!response.ok) {
+                statusEl.textContent = text;
+                statusEl.className = "error";
+            } else {
+                outputBox.value = text;
+                statusEl.textContent = `Success! (${text.length} characters extracted)`;
+            }
+        } catch (err) {
+            statusEl.textContent = "Error: Could not connect to C backend server.";
+            statusEl.className = "error";
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "Scrape Text";
+        }
+    }
+
+    function copyText() {
+        const outputBox = document.getElementById('outputBox');
+        if (!outputBox.value) return;
+        navigator.clipboard.writeText(outputBox.value);
+        document.getElementById('status').textContent = "Copied to clipboard!";
+    }
+
+    function downloadTxt() {
+        const text = document.getElementById('outputBox').value;
+        const urlStr = document.getElementById('urlInput').value.trim();
+        if (!text) return;
+
+        let filename = "scraped_data.txt";
+        try {
+            const hostname = new URL(urlStr).hostname.replace(/^www\./, '').replace(/\./g, '_');
+            if (hostname) filename = `${hostname}.txt`;
+        } catch (e) {}
+
+        const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        link.click();
+    }
+</script>
+
+</body>
+</html>
